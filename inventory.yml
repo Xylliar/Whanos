@@ -1,0 +1,23 @@
+
+all:
+  vars:
+    ansible_user: "{{ vault_ssh_user }}"
+    ansible_password: "{{ vault_ssh_password }}"
+    ansible_become: yes
+    ansible_become_method: sudo
+    ansible_become_pass: "{{ vault_sudo_password }}"
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  children:
+    kubernetes:
+      children:
+        master:
+          hosts:
+            kmaster:
+              ansible_host: "{{ master_ip }}"
+        workers:
+          hosts:
+            kworker1:
+              ansible_host: "{{ worker1_ip }}"
+            kworker2:
+              ansible_host: "{{ worker2_ip }}"

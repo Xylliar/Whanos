@@ -1,0 +1,5 @@
+.env
+vault.yml
+k3s.yaml
+*.retry
+.DS_Store

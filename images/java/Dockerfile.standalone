@@ -1,0 +1,14 @@
+FROM maven:3.9-eclipse-temurin-21
+
+SHELL ["/bin/bash", "-c"]
+
+WORKDIR /app
+
+COPY app/pom.xml app/pom.xml
+RUN mvn -B --no-transfer-progress -f app/pom.xml dependency:go-offline
+COPY app app
+RUN mvn -B --no-transfer-progress -f app/pom.xml package \
+    && mv app/target/app.jar app.jar \
+    && rm -rf app /root/.m2
+
+CMD ["java", "-jar", "app.jar"]

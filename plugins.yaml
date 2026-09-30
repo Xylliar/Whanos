@@ -1,0 +1,8 @@
+plugins:
+  - artifactId: configuration-as-code
+  - artifactId: cloudbees-folder
+  - artifactId: job-dsl
+  - artifactId: git
+  - artifactId: credentials
+  - artifactId: ssh-credentials
+  - artifactId: role-strategy

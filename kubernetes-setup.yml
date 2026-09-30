@@ -1,0 +1,84 @@
+
+---
+- name: Install dependencies and Kubernetes components
+  hosts: all
+  vars_files:
+    - vars.yml
+    - vault.yml
+  become: yes
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+
+    - name: Add Kubernetes APT key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+
+    - name: Install Kubernetes packages
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        allow_downgrade: yes
+        update_cache: yes
+
+    - name: Hold Kubernetes packages
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        mark: hold
+
+- name: Initialize Kubernetes Master
+  hosts: master
+  vars_files:
+    - vars.yml
+    - vault.yml
+  become: yes
+  tasks:
+    - name: Initialize Kubernetes cluster
+      command: kubeadm init --pod-network-cidr=192.168.0.0/16
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Set up Kubernetes config for root
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: yes
+
+    - name: Install Calico network plugin
+      shell: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml --kubeconfig /root/.kube/config
+
+    - name: Generate join command
+      shell: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
+
+- name: Join Worker Nodes to Cluster
+  hosts: workers
+  vars_files:
+    - vars.yml
+    - vault.yml
+  become: yes
+  tasks:
+    - name: Join the cluster
+      command: "{{ hostvars['kmaster']['join_command'].stdout }} --ignore-preflight-errors=All"

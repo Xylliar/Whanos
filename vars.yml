@@ -1,0 +1,6 @@
+---
+master_ip: "34.58.153.1"
+worker1_ip: "104.198.76.179"
+worker2_ip: "146.148.69.251"
+ssh_user: "{{ vault_ssh_user }}"
+ssh_password: "{{ vault_ssh_password }}"

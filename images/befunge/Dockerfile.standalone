@@ -1,0 +1,18 @@
+FROM debian:trixie-slim
+
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential ca-certificates git \
+    && git clone --depth 1 https://github.com/catseye/Befunge-93.git /tmp/befunge-93 \
+    && make -C /tmp/befunge-93 \
+    && install -m 755 /tmp/befunge-93/bin/bef /usr/local/bin/bef \
+    && rm -rf /tmp/befunge-93 \
+    && apt-get purge -y --auto-remove build-essential ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY app/main.bf app/main.bf
+
+CMD ["bef", "app/main.bf"]

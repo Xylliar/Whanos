@@ -1,0 +1,102 @@
+name: whanos
+
+x-k3s-node: &k3s-node
+  image: rancher/k3s:v1.36.4-k3s1
+  privileged: true
+  restart: unless-stopped
+  tmpfs:
+    - /run
+    - /var/run
+
+services:
+  registry:
+    image: registry:3
+    container_name: whanos-registry
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+
+  k3s-server:
+    <<: *k3s-node
+    container_name: whanos-k3s-server
+    hostname: k3s-server
+    command:
+      - server
+      - --tls-san=k3s-server
+      - --disable=traefik
+      - --disable=servicelb
+      - --flannel-backend=host-gw
+      - --service-node-port-range=30000-30099
+    environment:
+      K3S_TOKEN: ${K3S_TOKEN:?K3S_TOKEN must be set in .env}
+      K3S_KUBECONFIG_OUTPUT: /output/kubeconfig.yaml
+      K3S_KUBECONFIG_MODE: "644"
+    ports:
+      - "6443:6443"
+      - "30000-30099:30000-30099"
+    volumes:
+      - k3s_server:/var/lib/rancher/k3s
+      - k3s_kubeconfig:/output
+      - ./k3s/registries.yaml:/etc/rancher/k3s/registries.yaml:ro
+
+  k3s-agent-1:
+    <<: *k3s-node
+    container_name: whanos-k3s-agent-1
+    hostname: k3s-agent-1
+    command: agent
+    environment:
+      K3S_URL: https://k3s-server:6443
+      K3S_TOKEN: ${K3S_TOKEN:?K3S_TOKEN must be set in .env}
+    volumes:
+      - k3s_agent_1:/var/lib/rancher/k3s
+      - k3s_agent_1_node:/etc/rancher/node
+      - ./k3s/registries.yaml:/etc/rancher/k3s/registries.yaml:ro
+    depends_on:
+      - k3s-server
+
+  k3s-agent-2:
+    <<: *k3s-node
+    container_name: whanos-k3s-agent-2
+    hostname: k3s-agent-2
+    command: agent
+    environment:
+      K3S_URL: https://k3s-server:6443
+      K3S_TOKEN: ${K3S_TOKEN:?K3S_TOKEN must be set in .env}
+    volumes:
+      - k3s_agent_2:/var/lib/rancher/k3s
+      - k3s_agent_2_node:/etc/rancher/node
+      - ./k3s/registries.yaml:/etc/rancher/k3s/registries.yaml:ro
+    depends_on:
+      - k3s-server
+
+  jenkins:
+    build: .
+    container_name: whanos-jenkins
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?JENKINS_ADMIN_PASSWORD must be set in .env}
+      SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY:-}
+      WHANOS_REGISTRY: localhost:5001
+      WHANOS_KUBE_SERVER: https://k3s-server:6443
+      KUBECONFIG: /var/jenkins_kubeconfig/kubeconfig.yaml
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - k3s_kubeconfig:/var/jenkins_kubeconfig:ro
+    depends_on:
+      - registry
+      - k3s-server
+
+volumes:
+  registry_data:
+  jenkins_home:
+  k3s_server:
+  k3s_kubeconfig:
+  k3s_agent_1:
+  k3s_agent_1_node:
+  k3s_agent_2:
+  k3s_agent_2_node:

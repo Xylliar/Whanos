@@ -1,0 +1,11 @@
+FROM node:20.9
+
+SHELL ["/bin/bash", "-c"]
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+CMD ["node", "."]
